@@ -17,34 +17,30 @@ app.get("/", (req, res) => {
 // MAIN AI ROUTE
 app.post("/generate", async (req, res) => {
   const prompt = req.body.prompt;
-  console.log("PROMPT:", prompt);
 
   try {
-    const response = await client.responses.create({
-      model: "gpt-4.1-mini", // safer model for now
-      input: `Return JSON like { "units": [{ "type": "worker", "count": 3 }] }. User: ${prompt}`
+    const response = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "Return ONLY JSON like {\"units\":[{\"type\":\"worker\",\"count\":1}]}"
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ]
     });
 
-    let text = response.output_text || "";
-
-    if (!text && response.output) {
-      text = response.output[0]?.content[0]?.text || "";
-    }
+    const text = response.choices[0].message.content;
 
     console.log("AI TEXT:", text);
 
-    const data = JSON.parse(text);
-    res.json(data);
+    res.json(JSON.parse(text));
 
   } catch (err) {
     console.error("ERROR:", err);
-    res.json({ error: "AI failed" });
+    res.json({ error: "AI failed", detail: err.message });
   }
-});
-
-// IMPORTANT: PORT (THIS FIXES MANY CRASHES)
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log("Server running on port", PORT);
 });
