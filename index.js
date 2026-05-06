@@ -1,39 +1,34 @@
 const express = require("express");
+const OpenAI = require("openai");
 
 const app = express();
 app.use(express.json());
 
+// OpenAI setup
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
+
+// TEST ROUTE
 app.get("/", (req, res) => {
   res.send("AI server is running");
 });
 
+// MAIN AI ROUTE
 app.post("/generate", async (req, res) => {
   const prompt = req.body.prompt;
   console.log("PROMPT:", prompt);
 
   try {
     const response = await client.responses.create({
-      model: "gpt-5.4",
-      input: `
-Return ONLY JSON like this:
-{
-  "units": [
-    { "type": "worker", "count": 3 }
-  ]
-}
-
-User request: ${prompt}
-      `
+      model: "gpt-4.1-mini", // safer model for now
+      input: `Return JSON like { "units": [{ "type": "worker", "count": 3 }] }. User: ${prompt}`
     });
 
-    console.log("FULL RESPONSE:", JSON.stringify(response, null, 2));
+    let text = response.output_text || "";
 
-    // safer extraction
-    let text = "";
-    if (response.output_text) {
-      text = response.output_text;
-    } else if (response.output && response.output[0]?.content[0]?.text) {
-      text = response.output[0].content[0].text;
+    if (!text && response.output) {
+      text = response.output[0]?.content[0]?.text || "";
     }
 
     console.log("AI TEXT:", text);
@@ -45,4 +40,11 @@ User request: ${prompt}
     console.error("ERROR:", err);
     res.json({ error: "AI failed" });
   }
+});
+
+// IMPORTANT: PORT (THIS FIXES MANY CRASHES)
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log("Server running on port", PORT);
 });
