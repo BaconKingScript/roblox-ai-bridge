@@ -1,41 +1,62 @@
-const OpenAI = require("openai");
-
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
-
 const express = require("express");
 
 const app = express();
 app.use(express.json());
 
+/*
+========================
+ HEALTH CHECK ROUTE
+========================
+*/
 app.get("/", (req, res) => {
   res.send("Server is alive");
 });
 
+/*
+========================
+ AI GENERATE ROUTE (POLLINATIONS)
+========================
+*/
 app.post("/generate", async (req, res) => {
   const prompt = req.body.prompt;
 
   try {
-    const response = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: 'Return ONLY JSON like {"units":[{"type":"worker","count":1}]}'
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ]
+    const response = await fetch("https://text.pollinations.ai/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "openai",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a Roblox world generator. Return ONLY valid JSON. No text. No explanation. Format exactly: {\"units\":[],\"tools\":[],\"map\":{}}"
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ]
+      })
     });
 
-    const text = response.choices[0].message.content;
+    const raw = await response.text();
 
-    console.log("AI TEXT:", text);
+    console.log("RAW AI RESPONSE:", raw);
 
-    res.json(JSON.parse(text));
+    // Extract JSON safely (prevents broken responses crashing server)
+    const start = raw.indexOf("{");
+    const end = raw.lastIndexOf("}");
+
+    if (start === -1 || end === -1) {
+      return res.json({ error: "Invalid AI response", raw });
+    }
+
+    const json = JSON.parse(raw.substring(start, end + 1));
+
+    res.json(json);
 
   } catch (err) {
     console.error("AI ERROR:", err);
@@ -43,6 +64,11 @@ app.post("/generate", async (req, res) => {
   }
 });
 
+/*
+========================
+ START SERVER
+========================
+*/
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
