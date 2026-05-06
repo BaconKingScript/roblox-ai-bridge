@@ -1,3 +1,9 @@
+const OpenAI = require("openai");
+
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
+
 const express = require("express");
 
 const app = express();
@@ -5,6 +11,36 @@ app.use(express.json());
 
 app.get("/", (req, res) => {
   res.send("Server is alive");
+});
+
+app.post("/generate", async (req, res) => {
+  const prompt = req.body.prompt;
+
+  try {
+    const response = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: 'Return ONLY JSON like {"units":[{"type":"worker","count":1}]}'
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ]
+    });
+
+    const text = response.choices[0].message.content;
+
+    console.log("AI TEXT:", text);
+
+    res.json(JSON.parse(text));
+
+  } catch (err) {
+    console.error("AI ERROR:", err);
+    res.json({ error: "AI failed", detail: err.message });
+  }
 });
 
 const PORT = process.env.PORT || 3000;
