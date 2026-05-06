@@ -5,7 +5,7 @@ app.use(express.json());
 
 /*
 ========================
- HEALTH CHECK ROUTE
+ HEALTH CHECK
 ========================
 */
 app.get("/", (req, res) => {
@@ -14,11 +14,15 @@ app.get("/", (req, res) => {
 
 /*
 ========================
- AI GENERATE ROUTE (POLLINATIONS)
+ AI GENERATE ROUTE
 ========================
 */
 app.post("/generate", async (req, res) => {
   const prompt = req.body.prompt;
+
+  if (!prompt) {
+    return res.json({ error: "No prompt provided" });
+  }
 
   try {
     const response = await fetch("https://text.pollinations.ai/", {
@@ -46,12 +50,15 @@ app.post("/generate", async (req, res) => {
 
     console.log("RAW AI RESPONSE:", raw);
 
-    // Extract JSON safely (prevents broken responses crashing server)
+    // Find JSON safely inside response
     const start = raw.indexOf("{");
     const end = raw.lastIndexOf("}");
 
     if (start === -1 || end === -1) {
-      return res.json({ error: "Invalid AI response", raw });
+      return res.json({
+        error: "Invalid AI response",
+        raw
+      });
     }
 
     const json = JSON.parse(raw.substring(start, end + 1));
@@ -60,7 +67,11 @@ app.post("/generate", async (req, res) => {
 
   } catch (err) {
     console.error("AI ERROR:", err);
-    res.json({ error: "AI failed", detail: err.message });
+
+    res.json({
+      error: "AI failed",
+      detail: err.message
+    });
   }
 });
 
